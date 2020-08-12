@@ -251,12 +251,13 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 		// Verifica se já há carros atravessando a ponte no mesmo sentido N-S
 
 		LockMutex(&mutex_tempo);
-		printf("%s", (long long)tempo_atual > (long long)(tempo_SN + 5) ? "true" : "false");
+		printf("%s\n", (long long)tempo_atual > (long long)(tempo_SN + 5) ? "true" : "false");
 		if ((long long) tempo_atual > (long long) (tempo_SN + 5)) {
+			printf("Passando a vez da ponte para o outro sentido!\n");
 			UnLockMutex(&mutex_tempo);
+			time(&tempo_NS);
 			Signal(&Sentido_SN);
 			Wait(&Sentido_NS);
-			time(&tempo_NS);
 		} else {
 			UnLockMutex(&mutex_tempo);
 		}
@@ -265,7 +266,6 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 		if (cont_NS == 0) {
 			SetConsoleTextAttribute(hOut, HLRED);
 			printf("Primeiro carro a chegar na entrada Norte: aguarda a ponte ficar livre\n");
-			time(&tempo_NS);
 			Wait(&PonteLivre);
 			printf("Ponte livre!\n");
 		}
@@ -290,8 +290,6 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 			Signal(&PonteLivre);
 		}
 		UnLockMutex(&mutex_NS);
-
-		Signal(&Sentido_NS);
 
 		SetConsoleTextAttribute(hOut, HLRED);
 		printf("Carro %d saiu da ponte no sentido Norte-Sul...\n", i);
@@ -318,13 +316,18 @@ void* Thread_SN(void* arg) {  /* Threads representando carros no sentido Sul-Nor
 
 		//Outro sentido esperando por muito tempo
 
+
 		LockMutex(&mutex_tempo);
-		if (tempo_atual > tempo_NS + 5) {
+		printf("%s\n", (long long)tempo_atual > (long long)(tempo_NS + 5) ? "true" : "false");
+		printf("%lld %lld\n", (long long)tempo_atual, (long long)(tempo_NS + 5));
+		if ((long long)tempo_atual > (long long)(tempo_NS + 5)) {
+			printf("Passando a vez da ponte para o outro sentido!\n");
+			time(&tempo_SN);
 			UnLockMutex(&mutex_tempo);
 			Signal(&Sentido_NS);
 			Wait(&Sentido_SN);
-			time(&tempo_SN);
-		} else {
+		}
+		else {
 			UnLockMutex(&mutex_tempo);
 		}
 
@@ -333,7 +336,6 @@ void* Thread_SN(void* arg) {  /* Threads representando carros no sentido Sul-Nor
 		if (cont_SN == 0) {
 			SetConsoleTextAttribute(hOut, HLGREEN);
 			printf("Primeiro carro a chegar na entrada Sul: aguarda a ponte ficar livre\n");
-			time(&tempo_SN);
 			Wait(&PonteLivre);
 			printf("Ponte livre!\n");
 		}
