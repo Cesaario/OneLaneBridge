@@ -251,7 +251,6 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 		// Verifica se já há carros atravessando a ponte no mesmo sentido N-S
 
 		LockMutex(&mutex_tempo);
-		printf("%s\n", (long long)tempo_atual > (long long)(tempo_SN + 5) ? "true" : "false");
 		if ((long long) tempo_atual > (long long) (tempo_SN + 5)) {
 			printf("Passando a vez da ponte para o outro sentido!\n");
 			UnLockMutex(&mutex_tempo);
@@ -280,7 +279,7 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 		// Carro gasta um tempo aleatorio para atravessar a ponte
 		Sleep(100 * (rand() % 10));
 
-		printf("Carro %d saindo da ponte no sentido Norte-Sul...\n", i);
+		//printf("Carro %d saindo da ponte no sentido Norte-Sul...\n", i);
 
 		// Carro sai da ponte
 		LockMutex(&mutex_NS);
@@ -318,8 +317,6 @@ void* Thread_SN(void* arg) {  /* Threads representando carros no sentido Sul-Nor
 
 
 		LockMutex(&mutex_tempo);
-		printf("%s\n", (long long)tempo_atual > (long long)(tempo_NS + 5) ? "true" : "false");
-		printf("%lld %lld\n", (long long)tempo_atual, (long long)(tempo_NS + 5));
 		if ((long long)tempo_atual > (long long)(tempo_NS + 5)) {
 			printf("Passando a vez da ponte para o outro sentido!\n");
 			time(&tempo_SN);
@@ -350,7 +347,7 @@ void* Thread_SN(void* arg) {  /* Threads representando carros no sentido Sul-Nor
 		// Carro gasta um tempo aleatorio para atravessar a ponte
 		Sleep(100 * (rand() % 10));
 
-		printf("Carro %d saindo da ponte no sentido Sul-Norte...\n", i);
+		//printf("Carro %d saindo da ponte no sentido Sul-Norte...\n", i);
 
 		// Carro sai da ponte
 		LockMutex(&mutex_SN);
