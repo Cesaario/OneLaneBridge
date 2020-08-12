@@ -238,16 +238,14 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 		printf("Carro %d atravessando a ponte no sentido Norte-Sul...\n", i);
 
 		// Carro gasta um tempo aleatorio para atravessar a ponte
-		Sleep(1000 * (rand() % 10));
+		Sleep(100 * (rand() % 10));
 
 		printf("Carro %d saindo da ponte no sentido Norte-Sul...\n", i);
 
 		// Carro sai da ponte
 		LockMutex(&mutex_NS);
 		cont_NS--;
-		UnLockMutex(&mutex_NS);
 
-		LockMutex(&mutex_NS);
 		if (cont_NS == 0) {
 			Signal(&PonteLivre);
 		}
@@ -301,13 +299,12 @@ void* Thread_SN(void* arg) {  /* Threads representando carros no sentido Sul-Nor
 		// Carro sai da ponte
 		LockMutex(&mutex_SN);
 		cont_SN--;
-		UnLockMutex(&mutex_SN);
 
-		LockMutex(&mutex_SN);
 		if (cont_SN == 0) {
 			Signal(&PonteLivre);
 		}
 		UnLockMutex(&mutex_SN);
+
 		SetConsoleTextAttribute(hOut, HLGREEN);
 		printf("Carro %d saiu da ponte no sentido Sul-Norte...\n", i);
 
