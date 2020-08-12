@@ -238,7 +238,7 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 		printf("Carro %d atravessando a ponte no sentido Norte-Sul...\n", i);
 
 		// Carro gasta um tempo aleatorio para atravessar a ponte
-		Sleep(100 * (rand() % 10));
+		//Sleep(1000 * (rand() % 10));
 
 		printf("Carro %d saindo da ponte no sentido Norte-Sul...\n", i);
 
@@ -292,7 +292,7 @@ void* Thread_SN(void* arg) {  /* Threads representando carros no sentido Sul-Nor
 		printf("Carro %d atravessando a ponte no sentido Sul-Norte...\n", i);
 
 		// Carro gasta um tempo aleatorio para atravessar a ponte
-		Sleep(100 * (rand() % 10));
+		//Sleep(100 * (rand() % 10));
 
 		printf("Carro %d saindo da ponte no sentido Sul-Norte...\n", i);
 
