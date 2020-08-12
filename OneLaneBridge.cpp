@@ -54,6 +54,8 @@ int cont_NS = 0, cont_SN = 0;	 //Contadores de carros atravessando a ponte
 
 HANDLE hOut;					 //Handle para a saída da console
 
+int time;
+
 /*===============================================================================*/
 /* Corpo das funções auxiliares Wait(), Signal(), LockMutex e UnLockMutex. Estas */
 /* funções assumem que o semaforo [Wait() e Signal()] ou o mutex [LockMutex() e  */
