@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <conio.h>						//_getch
+#include <time.h>
 #define HAVE_STRUCT_TIMESPEC
 #include <pthread.h>
 #include <semaphore.h>
@@ -54,7 +55,10 @@ int cont_NS = 0, cont_SN = 0;	 //Contadores de carros atravessando a ponte
 
 HANDLE hOut;					 //Handle para a saída da console
 
-int time;
+sem_t Sentido_NS;				 //Semáforo para sinalizar ponte livre/ocupada
+sem_t Sentido_SN;				 //Semáforo para sinalizar ponte livre/ocupada
+time_t tempo_NS;		 //Usado para controle de espera
+time_t tempo_SN;		 //Usado para controle de espera
 
 /*===============================================================================*/
 /* Corpo das funções auxiliares Wait(), Signal(), LockMutex e UnLockMutex. Estas */
@@ -228,6 +232,7 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 		if (cont_NS == 0) {
 			SetConsoleTextAttribute(hOut, HLRED);
 			printf("Primeiro carro a chegar na entrada Norte: aguarda a ponte ficar livre\n");
+			Gettimeofday(&tempo_NS, NULL);
 			Wait(&PonteLivre);
 			printf("Ponte livre!\n");
 		}
