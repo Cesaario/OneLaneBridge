@@ -285,9 +285,7 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 		// Carro sai da ponte
 		LockMutex(&mutex_NS);
 		cont_NS--;
-		UnLockMutex(&mutex_NS);
 
-		LockMutex(&mutex_NS);
 		if (cont_NS == 0) {
 			Signal(&PonteLivre);
 		}
@@ -355,13 +353,12 @@ void* Thread_SN(void* arg) {  /* Threads representando carros no sentido Sul-Nor
 		// Carro sai da ponte
 		LockMutex(&mutex_SN);
 		cont_SN--;
-		UnLockMutex(&mutex_SN);
 
-		LockMutex(&mutex_SN);
 		if (cont_SN == 0) {
 			Signal(&PonteLivre);
 		}
 		UnLockMutex(&mutex_SN);
+
 		SetConsoleTextAttribute(hOut, HLGREEN);
 		printf("Carro %d saiu da ponte no sentido Sul-Norte...\n", i);
 
