@@ -25,6 +25,7 @@
 #include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>	
 #include <conio.h>						//_getch
 #define HAVE_STRUCT_TIMESPEC
 #include <pthread.h>
@@ -42,6 +43,7 @@
 /* Atencao para o formato conforme o exemplo abaixo! */
 void* Thread_SN(void* arg);
 void* Thread_NS(void* arg);
+void* Thread_Controladora(void* arg);
 
 /* Declaração dos objetos de sincronização */
 pthread_mutexattr_t MutexAttr;
@@ -53,6 +55,12 @@ int nTecla;						 //Variável que armazena a tecla digitada para sair
 int cont_NS = 0, cont_SN = 0;	 //Contadores de carros atravessando a ponte
 
 HANDLE hOut;					 //Handle para a saída da console
+
+
+sem_t Sentido_NS;				 //Semáforo para sinalizar sentido impedido
+sem_t Sentido_SN;				 //Semáforo para sinalizar sentido impedido
+time_t tempo_NS;
+time_t tempo_SN;
 
 /*===============================================================================*/
 /* Corpo das funções auxiliares Wait(), Signal(), LockMutex e UnLockMutex. Estas */
@@ -102,6 +110,7 @@ void UnLockMutex(pthread_mutex_t* Mutex) {
 
 int main() {
 	pthread_t hThreads[N_NorteSul + N_SulNorte];
+	pthread_t threadControladora;
 	void* tRetStatus;
 	int i, status;
 
@@ -143,6 +152,16 @@ int main() {
 		printf("Erro na inicializacao do semaforo ! Codigo = %d\n", errno);
 		exit(0);
 	}
+	status = sem_init(&Sentido_NS, 0, 1); //sempre retorna 0
+	if (status != 0) {
+		printf("Erro na inicializacao do semaforo ! Codigo = %d\n", errno);
+		exit(0);
+	}
+	status = sem_init(&Sentido_SN, 0, 1); //sempre retorna 0
+	if (status != 0) {
+		printf("Erro na inicializacao do semaforo ! Codigo = %d\n", errno);
+		exit(0);
+	}
 
 	// --------------------------------------------------------------------------
 	// Criação das threads secundárias
@@ -167,6 +186,14 @@ int main() {
 			exit(0);
 		}
 	}// end for
+
+	//Thread controladora
+	status = pthread_create(&threadControladora, NULL, Thread_Controladora, (void*) 1);
+	if (status == 0) printf("Thread Controladora criada!\n");
+	else {
+		printf("Erro na criacao da thread Controladora\n");
+		exit(0);
+	}
 
 	// --------------------------------------------------------------------------
 	// Leitura do teclado
@@ -214,6 +241,27 @@ int main() {
 /* Threads secundarias                                                                 */
 /*=====================================================================================*/
 
+void* Thread_Controladora(void* arg) {
+	do {
+		time_t tempo_atual;
+		time(&tempo_atual);
+		if ((long long)tempo_atual > (long long)(tempo_NS + 5)) {
+			printf("Passando a vez para Norte-Sul\n");
+			Signal(&Sentido_NS);
+			Wait(&Sentido_SN);
+		}
+		if ((long long)tempo_atual > (long long)(tempo_SN + 5)) {
+			printf("Passando a vez para Sul-Norte\n");
+			Signal(&Sentido_SN);
+			Wait(&Sentido_NS);
+		}
+	} while (nTecla != ESC);
+
+	printf("Thread controladora encerrando execucao...\n");
+	pthread_exit(NULL);
+	return(0);
+}
+
 void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-Sul */
 
 	int i = (int)arg;
@@ -224,11 +272,15 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 		// Verifica se já há carros atravessando a ponte no mesmo sentido N-S
 		LockMutex(&mutex_NS);
 		if (cont_NS == 0) {
+			time(&tempo_NS);
 			SetConsoleTextAttribute(hOut, HLRED);
 			printf("Primeiro carro a chegar na entrada Norte: aguarda a ponte ficar livre\n");
 			Wait(&PonteLivre);
 			printf("Ponte livre!\n");
 		}
+
+		Wait(&Sentido_NS);
+
 		// Carro entra na ponte no sentido Norte-Sul
 		cont_NS++;
 
@@ -237,8 +289,10 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 		SetConsoleTextAttribute(hOut, HLRED);
 		printf("Carro %d atravessando a ponte no sentido Norte-Sul...\n", i);
 
+		Signal(&Sentido_NS);
+
 		// Carro gasta um tempo aleatorio para atravessar a ponte
-		//Sleep(1000 * (rand() % 10));
+		Sleep(100 * (rand() % 10));
 
 		printf("Carro %d saindo da ponte no sentido Norte-Sul...\n", i);
 
@@ -272,17 +326,17 @@ void* Thread_SN(void* arg) {  /* Threads representando carros no sentido Sul-Nor
 
 		// ACRESCENTE OS COMANDOS DE SINCRONIZACAO VIA SEMAFOROS ONDE NECESSARIO
 
-		if (cont_SN == 0) {
-		}
-
 		// Verifica se já há carros atravessando a ponte no sentido Sul-Norte
 		LockMutex(&mutex_SN);
 		if (cont_SN == 0) {
+			time(&tempo_SN);
 			SetConsoleTextAttribute(hOut, HLGREEN);
 			printf("Primeiro carro a chegar na entrada Sul: aguarda a ponte ficar livre\n");
 			Wait(&PonteLivre);
 			printf("Ponte livre!\n");
 		}
+
+		Wait(&Sentido_SN);
 
 		// Carro atravessa a ponte no sentido Sul-Norte
 		cont_SN++;
@@ -291,8 +345,10 @@ void* Thread_SN(void* arg) {  /* Threads representando carros no sentido Sul-Nor
 		SetConsoleTextAttribute(hOut, HLGREEN);
 		printf("Carro %d atravessando a ponte no sentido Sul-Norte...\n", i);
 
+		Signal(&Sentido_SN);
+
 		// Carro gasta um tempo aleatorio para atravessar a ponte
-		//Sleep(100 * (rand() % 10));
+		Sleep(100 * (rand() % 10));
 
 		printf("Carro %d saindo da ponte no sentido Sul-Norte...\n", i);
 
