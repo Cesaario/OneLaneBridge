@@ -58,13 +58,16 @@ int nTecla;						 //Variável que armazena a tecla digitada para sair
 int cont_NS = 0, cont_SN = 0;	 //Contadores de carros atravessando a ponte
 int vez;
 
+int fila_NS = 0, fila_SN = 0;
+
 HANDLE hOut;					 //Handle para a saída da console
 
-
-sem_t Sentido_NS;				 //Semáforo para sinalizar sentido impedido
-sem_t Sentido_SN;				 //Semáforo para sinalizar sentido impedido
 time_t tempo_NS;
 time_t tempo_SN;
+pthread_mutex_t mutex_fila_SN;
+pthread_mutex_t mutex_fila_NS;
+pthread_cond_t Sentido_NS;				 //Semáforo para sinalizar sentido impedido
+pthread_cond_t Sentido_SN;				 //Semáforo para sinalizar sentido impedido
 
 /*===============================================================================*/
 /* Corpo das funções auxiliares Wait(), Signal(), LockMutex e UnLockMutex. Estas */
@@ -156,6 +159,16 @@ int main() {
 	status = pthread_mutex_init(&mutex_SN, &MutexAttr);
 	if (status != 0) {
 		printf("Erro na criação do Mutex SN! Codigo = %d\n", status);
+		exit(0);
+	}
+	status = pthread_mutex_init(&mutex_fila_NS, &MutexAttr);
+	if (status != 0) {
+		printf("Erro na criação do Mutex fila NS! Codigo = %d\n", status);
+		exit(0);
+	}
+	status = pthread_mutex_init(&mutex_fila_SN, &MutexAttr);
+	if (status != 0) {
+		printf("Erro na criação do Mutex fila SN! Codigo = %d\n", status);
 		exit(0);
 	}
 
@@ -287,13 +300,15 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 
 		// ACRESCENTE OS COMANDOS DE SINCRONIZACAO VIA SEMAFOROS ONDE NECESSARIO
 
-		if (Vez_SN() && vez == NS) {
-			printf("Passando a vez para Sul-Norte\n");
-			Signal(&Sentido_SN);
+		LockMutex(&mutex_fila_SN);
+		if (Vez_SN() && fila_SN > 0) {
 			Wait(&Sentido_NS);
 		}
 
 		// Verifica se já há carros atravessando a ponte no mesmo sentido N-S
+		LockMutex(&mutex_fila_NS);
+		fila_NS++;
+
 		LockMutex(&mutex_NS);
 		if (cont_NS == 0) {
 			time(&tempo_NS);
@@ -306,8 +321,11 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 
 		// Carro entra na ponte no sentido Norte-Sul
 		cont_NS++;
+		fila_NS--;
 
 		UnLockMutex(&mutex_NS);
+
+		UnLockMutex(&mutex_fila_NS);
 
 		SetConsoleTextAttribute(hOut, HLRED);
 		printf("Carro %d atravessando a ponte no sentido Norte-Sul...\n", i);
