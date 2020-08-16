@@ -281,6 +281,13 @@ int main() {
 		else printf("Thread %d: status de retorno = %d\n", i, (int)tRetStatus);
 	}
 
+	SetConsoleTextAttribute(hOut, WHITE);
+	printf("Aguardando termino da thread controladora...\n");
+	status = pthread_join(ThreadControladora, &tRetStatus);
+	SetConsoleTextAttribute(hOut, WHITE);
+	if (status != 0) printf("Erro em pthread_join()! Codigo = %d\n", status);
+	else printf("Thread %d: status de retorno = %d\n", i, (int)tRetStatus);
+
 	// --------------------------------------------------------------------------
 	// Elimina os objetos de sincronização criados
 	// --------------------------------------------------------------------------
@@ -294,6 +301,27 @@ int main() {
 
 	status = sem_destroy(&PonteLivre);
 	if (status != 0) printf("Erro na remocao do semaforo AcordaPai! Valor = %d\n", errno);
+
+	status = pthread_mutex_destroy(&mutex_controle_NS);
+	if (status != 0) printf("Erro na remocao do mutex! valor = %d\n", status);
+
+	status = pthread_mutex_destroy(&mutex_controle_SN);
+	if (status != 0) printf("Erro na remocao do mutex! valor = %d\n", status);
+
+	status = pthread_mutex_destroy(&mutex_fila_NS);
+	if (status != 0) printf("Erro na remocao do mutex! valor = %d\n", status);
+
+	status = pthread_mutex_destroy(&mutex_fila_SN);
+	if (status != 0) printf("Erro na remocao do mutex! valor = %d\n", status);
+
+	status = pthread_mutex_destroy(&mutex_print);
+	if (status != 0) printf("Erro na remocao do mutex! valor = %d\n", status);
+
+	status = pthread_cond_destroy(&controle_NS);
+	if (status != 0) printf("Erro na remocao da variável de condição! valor = %d\n", status);
+
+	status = pthread_cond_destroy(&controle_SN);
+	if (status != 0) printf("Erro na remocao da variável de condição! valor = %d\n", status);
 
 	CloseHandle(hOut);
 
@@ -329,7 +357,7 @@ void* Thread_Controladora(void* arg) {
 				}
 			}
 			else {
-				if (fila_NS > 0 || true) {
+				if (fila_NS > 0) {
 					vez = NS;
 					SignalCondition(&controle_NS);
 					LockMutex(&mutex_print);
@@ -348,6 +376,10 @@ void* Thread_Controladora(void* arg) {
 		Sleep(1000);
 	} while (nTecla != ESC);
 
+	//Libera todas as threads
+	SignalCondition(&controle_NS);
+	SignalCondition(&controle_SN);
+
 	//Encerramento da thread
 	LockMutex(&mutex_print);
 	SetConsoleTextAttribute(hOut, HLPURPLE);
@@ -359,7 +391,6 @@ void* Thread_Controladora(void* arg) {
 }
 
 void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-Sul */
-
 	int i = (int)arg;
 	do {
 		LockMutex(&mutex_fila_NS);
@@ -414,6 +445,9 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 		UnLockMutex(&mutex_print);
 
 	} while (nTecla != ESC);
+
+	//Libera as outras threads NS
+	SignalCondition(&controle_NS);
 
 	//Encerramento da thread
 	LockMutex(&mutex_print);
@@ -486,6 +520,9 @@ void* Thread_SN(void* arg) {  /* Threads representando carros no sentido Sul-Nor
 		UnLockMutex(&mutex_print);
 
 	} while (nTecla != ESC);
+
+	//Libera as outras threads SN
+	SignalCondition(&controle_SN);
 
 	//Encerramento da thread
 	LockMutex(&mutex_print);
