@@ -37,9 +37,12 @@
 #define NS 0
 #define SN 1
 
-#define WHITE   FOREGROUND_RED   | FOREGROUND_GREEN | FOREGROUND_BLUE
-#define HLGREEN FOREGROUND_GREEN | FOREGROUND_INTENSITY
-#define HLRED   FOREGROUND_RED   | FOREGROUND_INTENSITY
+#define WHITE		FOREGROUND_RED   | FOREGROUND_GREEN     | FOREGROUND_BLUE
+#define HLGREEN		FOREGROUND_GREEN | FOREGROUND_INTENSITY
+#define HLRED		FOREGROUND_RED   | FOREGROUND_INTENSITY
+#define HLBLUE		FOREGROUND_BLUE  | FOREGROUND_INTENSITY
+#define HLYELLOW	FOREGROUND_BLUE  | FOREGROUND_GREEN     | FOREGROUND_INTENSITY
+#define HLPURPLE	FOREGROUND_BLUE  | FOREGROUND_RED     | FOREGROUND_INTENSITY
 
 /* Declaracao dos prototipos de funcoes correspondetes aas threads secundarias*/
 /* Atencao para o formato conforme o exemplo abaixo! */
@@ -61,12 +64,15 @@ HANDLE hOut;					 //Handle para a saída da console
 time_t tempo_NS;
 time_t tempo_SN;
 
-pthread_cond_t controle_NS;
-pthread_cond_t controle_SN;
-pthread_mutex_t mutex_controle_NS;
-pthread_mutex_t mutex_controle_SN;
-int fila_NS = 0, fila_SN = 0;	 //Contadores de carros atravessando a ponte
-int vez = NS;
+pthread_cond_t controle_NS;             //Variável de condição de controle do sentido NS
+pthread_cond_t controle_SN;				//Variável de condição de controle do sentido SN
+pthread_mutex_t mutex_controle_NS;		//Mutex de controle do sentido NS
+pthread_mutex_t mutex_controle_SN;		//Mutex de controle do sentido SN
+pthread_mutex_t mutex_fila_NS;			//Mutex para o contador da fila do sentido NS
+pthread_mutex_t mutex_fila_SN;			//Mutex para o contador da fila do sentido SN
+pthread_mutex_t mutex_print;			//Mutex para controlar as cores da função printf
+int fila_NS = 0, fila_SN = 0;			//Contadores de carros na fila
+int vez = NS;							//Variável controladora do turno
 
 /*===============================================================================*/
 /* Corpo das funções auxiliares Wait(), Signal(), LockMutex e UnLockMutex. Estas */
@@ -176,6 +182,21 @@ int main() {
 		printf("Erro na criação do Mutex Controle NS! Codigo = %d\n", status);
 		exit(0);
 	}
+	status = pthread_mutex_init(&mutex_fila_SN, &MutexAttr);
+	if (status != 0) {
+		printf("Erro na criação do Mutex Fila SN! Codigo = %d\n", status);
+		exit(0);
+	}
+	status = pthread_mutex_init(&mutex_fila_NS, &MutexAttr);
+	if (status != 0) {
+		printf("Erro na criação do Mutex Fila NS! Codigo = %d\n", status);
+		exit(0);
+	}
+	status = pthread_mutex_init(&mutex_print, &MutexAttr);
+	if (status != 0) {
+		printf("Erro na criação do Mutex Print! Codigo = %d\n", status);
+		exit(0);
+	}
 
 	// --------------------------------------------------------------------------
 	// Criação do semáforo binário
@@ -216,15 +237,18 @@ int main() {
 
 	for (i = 0; i < N_NorteSul; i++) {
 		status = pthread_create(&hThreads[i], NULL, Thread_NS, (void*)i);
+		LockMutex(&mutex_print);
 		SetConsoleTextAttribute(hOut, WHITE);
 		if (status == 0) printf("Thread Norte-Sul %d criada com Id= %0d \n", i, (int)&hThreads[i]);
 		else {
 			printf("Erro na criacao da thread Norte-Sul %d! Codigo = %d\n", i, status);
 			exit(0);
 		}
+		UnLockMutex(&mutex_print);
 	}// end for
 
 	for (i = 0; i < N_SulNorte; i++) {
+		LockMutex(&mutex_print);
 		SetConsoleTextAttribute(hOut, WHITE);
 		status = pthread_create(&hThreads[i + N_NorteSul], NULL, Thread_SN, (void*)i);
 		if (status == 0) printf("Thread Sul-Norte %d criada com Id= %0d \n", i, (int)&hThreads[i + N_NorteSul]);
@@ -232,6 +256,7 @@ int main() {
 			printf("Erro na criacao da thread Sul-Norte %d! Codigo = %d\n", i, status);
 			exit(0);
 		}
+		UnLockMutex(&mutex_print);
 	}// end for
 
 	// --------------------------------------------------------------------------
@@ -287,25 +312,35 @@ void* Thread_Controladora(void* arg) {
 
 		long long tempo = (long long) tempo_atual;
 
-		if (tempo % 5 == 0) {
+		if (tempo % 10 == 0) {
 			if (vez == NS) {
 				if (fila_SN > 0) {
-					SignalCondition(&controle_SN);
 					vez = SN;
-					printf("Passando controle para o sentido SN");
-				}
-				else {
-					printf("Sem carros na fila SN, aguardando...");
+					SignalCondition(&controle_SN);
+					LockMutex(&mutex_print);
+					SetConsoleTextAttribute(hOut, HLBLUE);
+					printf("Passando controle para o sentido SN\n");
+					UnLockMutex(&mutex_print);
+				} else {
+					LockMutex(&mutex_print);
+					SetConsoleTextAttribute(hOut, HLYELLOW);
+					printf("Sem carros na fila SN, turno continua de NS...\n");
+					UnLockMutex(&mutex_print);
 				}
 			}
 			else {
-				if (fila_NS > 0) {
-					SignalCondition(&controle_NS);
+				if (fila_NS > 0 || true) {
 					vez = NS;
-					printf("Passando controle para o sentido NS");
-				}
-				else {
-					printf("Sem carros na fila NS, aguardando...");
+					SignalCondition(&controle_NS);
+					LockMutex(&mutex_print);
+					SetConsoleTextAttribute(hOut, HLBLUE);
+					printf("Passando controle para o sentido NS\n");
+					UnLockMutex(&mutex_print);
+				} else {
+					LockMutex(&mutex_print);
+					SetConsoleTextAttribute(hOut, HLYELLOW);
+					printf("Sem carros na fila NS, turno continua de SN\n");
+					UnLockMutex(&mutex_print);
 				}
 			}
 		}
@@ -314,8 +349,10 @@ void* Thread_Controladora(void* arg) {
 	} while (nTecla != ESC);
 
 	//Encerramento da thread
-	SetConsoleTextAttribute(hOut, HLRED);
+	LockMutex(&mutex_print);
+	SetConsoleTextAttribute(hOut, HLPURPLE);
 	printf("Thread Controladora encerrando execucao...\n");
+	UnLockMutex(&mutex_print);
 	pthread_exit(NULL);
 
 	return(0);
@@ -325,39 +362,42 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 
 	int i = (int)arg;
 	do {
+		LockMutex(&mutex_fila_NS);
+		fila_NS++;
+		UnLockMutex(&mutex_fila_NS);
 
 		if (vez == SN){
 			LockMutex(&mutex_controle_NS);
 			WaitCondition(&controle_NS, &mutex_controle_NS);
 			UnLockMutex(&mutex_controle_NS);
 		}
-
 		if (vez == NS) {
 			SignalCondition(&controle_NS);
 		}
 		
 		// Verifica se já há carros atravessando a ponte no mesmo sentido N-S
 		LockMutex(&mutex_NS);
-		fila_NS++;
 		if (cont_NS == 0) {
+			LockMutex(&mutex_print);
 			SetConsoleTextAttribute(hOut, HLRED);
 			printf("Primeiro carro a chegar na entrada Norte: aguarda a ponte ficar livre\n");
+			UnLockMutex(&mutex_print);
 			Wait(&PonteLivre);
 			printf("Ponte livre!\n");
 		}
+
 		// Carro entra na ponte no sentido Norte-Sul
 		cont_NS++;
 		fila_NS--;
-
 		UnLockMutex(&mutex_NS);
 
+		LockMutex(&mutex_print);
 		SetConsoleTextAttribute(hOut, HLRED);
 		printf("Carro %d atravessando a ponte no sentido Norte-Sul...\n", i);
+		UnLockMutex(&mutex_print);
 
 		// Carro gasta um tempo aleatorio para atravessar a ponte
 		Sleep(100 * (rand() % 10));
-
-		printf("Carro %d saindo da ponte no sentido Norte-Sul...\n", i);
 
 		// Carro sai da ponte
 		LockMutex(&mutex_NS);
@@ -368,14 +408,18 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 		}
 		UnLockMutex(&mutex_NS);
 
+		LockMutex(&mutex_print);
 		SetConsoleTextAttribute(hOut, HLRED);
 		printf("Carro %d saiu da ponte no sentido Norte-Sul...\n", i);
+		UnLockMutex(&mutex_print);
 
 	} while (nTecla != ESC);
 
 	//Encerramento da thread
-	SetConsoleTextAttribute(hOut, HLRED);
+	LockMutex(&mutex_print);
+	SetConsoleTextAttribute(hOut, HLPURPLE);
 	printf("Thread-carro N-S %d encerrando execucao...\n", i);
+	UnLockMutex(&mutex_print);
 	pthread_exit(NULL);
 	// O comando "return" abaixo é desnecessário, mas presente aqui para compatibilidade
 	// com o Visual Studio da Microsoft
@@ -383,11 +427,14 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 }//Thread_NS
 
 void* Thread_SN(void* arg) {  /* Threads representando carros no sentido Sul-Norte */
-
 	int i = (int)arg;
 	do {
 
 		// ACRESCENTE OS COMANDOS DE SINCRONIZACAO VIA SEMAFOROS ONDE NECESSARIO
+
+		LockMutex(&mutex_fila_SN);
+		fila_SN++;
+		UnLockMutex(&mutex_fila_SN);
 
 		if (vez == NS) {
 			LockMutex(&mutex_controle_SN);
@@ -401,26 +448,28 @@ void* Thread_SN(void* arg) {  /* Threads representando carros no sentido Sul-Nor
 
 		// Verifica se já há carros atravessando a ponte no sentido Sul-Norte
 		LockMutex(&mutex_SN);
-		fila_SN++;
 		if (cont_SN == 0) {
+			LockMutex(&mutex_print);
 			SetConsoleTextAttribute(hOut, HLGREEN);
 			printf("Primeiro carro a chegar na entrada Sul: aguarda a ponte ficar livre\n");
+			UnLockMutex(&mutex_print);
 			Wait(&PonteLivre);
 			printf("Ponte livre!\n");
 		}
 
+		fila_SN--;
+
 		// Carro atravessa a ponte no sentido Sul-Norte
 		cont_SN++;
-		fila_SN--;
 		UnLockMutex(&mutex_SN);
 
+		LockMutex(&mutex_print);
 		SetConsoleTextAttribute(hOut, HLGREEN);
 		printf("Carro %d atravessando a ponte no sentido Sul-Norte...\n", i);
+		UnLockMutex(&mutex_print);
 
 		// Carro gasta um tempo aleatorio para atravessar a ponte
 		Sleep(100 * (rand() % 10));
-
-		printf("Carro %d saindo da ponte no sentido Sul-Norte...\n", i);
 
 		// Carro sai da ponte
 		LockMutex(&mutex_SN);
@@ -431,14 +480,18 @@ void* Thread_SN(void* arg) {  /* Threads representando carros no sentido Sul-Nor
 		}
 		UnLockMutex(&mutex_SN);
 
+		LockMutex(&mutex_print);
 		SetConsoleTextAttribute(hOut, HLGREEN);
 		printf("Carro %d saiu da ponte no sentido Sul-Norte...\n", i);
+		UnLockMutex(&mutex_print);
 
 	} while (nTecla != ESC);
 
 	//Encerramento da thread
-	SetConsoleTextAttribute(hOut, HLGREEN);
+	LockMutex(&mutex_print);
+	SetConsoleTextAttribute(hOut, HLPURPLE);
 	printf("Thread-carro S-N %d encerrando execucao...\n", i);
+	UnLockMutex(&mutex_print);
 	pthread_exit(NULL);
 	// O comando "return" abaixo é desnecessário, mas presente aqui para compatibilidade
 	// com o Visual Studio da Microsoft
