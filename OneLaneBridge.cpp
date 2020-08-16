@@ -219,8 +219,6 @@ void* Thread_NS(void* arg) {  /* Threads representando carros no sentido Norte-S
 	int i = (int)arg;
 	do {
 
-		// ACRESCENTE OS COMANDOS DE SINCRONIZACAO VIA SEMAFOROS ONDE NECESSARIO
-
 		// Verifica se já há carros atravessando a ponte no mesmo sentido N-S
 		LockMutex(&mutex_NS);
 		if (cont_NS == 0) {
@@ -269,11 +267,6 @@ void* Thread_SN(void* arg) {  /* Threads representando carros no sentido Sul-Nor
 
 	int i = (int)arg;
 	do {
-
-		// ACRESCENTE OS COMANDOS DE SINCRONIZACAO VIA SEMAFOROS ONDE NECESSARIO
-
-		if (cont_SN == 0) {
-		}
 
 		// Verifica se já há carros atravessando a ponte no sentido Sul-Norte
 		LockMutex(&mutex_SN);
